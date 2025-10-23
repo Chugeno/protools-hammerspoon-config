@@ -1,0 +1,7 @@
+# Archivos de configuración del asistente
+gemini.md
+GEMINI.md
+
+# Archivos del sistema operativo macOS
+.DS_Store
+*.swp
