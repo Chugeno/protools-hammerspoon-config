@@ -2,7 +2,7 @@
 --  Spoon: ProToolsAutomator
 -- =============================================================================
 --  Crea una paleta de botones flotantes para abrir plugins de AudioSuite
---  en Pro Tools.
+--  en Pro Tools, con soporte para grupos de botones.
 -- =============================================================================
 
 local obj = {}
@@ -11,7 +11,7 @@ local obj = {}
 --  1. METADATOS DEL SPOON
 -- =============================================================================
 obj.name = "ProToolsAutomator"
-obj.version = "1.0"
+obj.version = "2.0"
 obj.author = "Eugenio Azurmendi <Chugeno>"
 obj.homepage = "https://github.com/Chugeno/protools-hammerspoon-config"
 obj.license = "MIT - https://opensource.org/licenses/MIT"
@@ -20,10 +20,14 @@ obj.license = "MIT - https://opensource.org/licenses/MIT"
 --  2. CONFIGURACIÓN DE BOTONES - ¡AGREGAR BOTONES AQUÍ!
 -- =============================================================================
 obj.buttonsConfig = {
-    { categoryName = "Noise Reduction", pluginName = "RX 11 Voice De-noise", buttonText = "RX Voice\nDe-noise" },
-    { categoryName = "Noise Reduction", pluginName = "RX 11 Spectral De-noise", buttonText = "RX Spectral\nDe-noise" },
-    { categoryName = "Noise Reduction", pluginName = "RX 11 De-clip", buttonText = "RX\nDe-clip" },
-    { categoryName = "Noise Reduction", pluginName = "RX 11 De-click", buttonText = "RX\nDe-click" },
+    -- Botones agrupados bajo "RX"
+    { group = "RX", categoryName = "Noise Reduction", pluginName = "RX 11 Voice De-noise", buttonText = "RX Voice\nDe-noise" },
+    { group = "RX", categoryName = "Noise Reduction", pluginName = "RX 11 Spectral De-noise", buttonText = "RX Spectral\nDe-noise" },
+    { group = "RX", categoryName = "Noise Reduction", pluginName = "RX 11 De-clip", buttonText = "RX\nDe-clip" },
+    { group = "RX", categoryName = "Noise Reduction", pluginName = "RX 11 De-click", buttonText = "RX\nDe-click" },
+    { group = "RX", categoryName = "Noise Reduction", pluginName = "RX 11 De-crackle", buttonText = "RX\nDe-crackle" },
+    
+    -- Botones sin grupo (se muestran siempre)
     { categoryName = "Noise Reduction", pluginName = "Hush Mix", buttonText = "Hush\nMix" },
     { categoryName = "Dynamics", pluginName = "RDeEsser Stereo", buttonText = "RDeEsser\nStereo" },
 }
@@ -34,7 +38,7 @@ obj.buttonsConfig = {
 obj.proToolsAppName = "Pro Tools"
 obj.buttonBackgroundColor = { red = 0.2, green = 0.25, blue = 0.3, alpha = 0.95 }
 obj.buttonTextColor = { red = 0.9, green = 0.95, blue = 1.0, alpha = 1.0 }
-obj.buttonHoverColor = { red = 0.3, green = 0.35, blue = 0.4, alpha = 0.95 }
+obj.groupButtonColor = { red = 0.25, green = 0.35, blue = 0.45, alpha = 0.95 }
 obj.buttonSize = 80
 obj.buttonRadius = 10
 obj.marginRight = 20
@@ -48,6 +52,7 @@ obj.canvasButtons = {}
 obj.buttonsVisible = true
 obj.toggleMenu = nil
 obj.screenWatcher = nil
+obj.activeGroups = {} -- Guarda qué grupos están expandidos
 
 -- =============================================================================
 --  5. LÓGICA DEL SPOON
@@ -75,38 +80,78 @@ function obj:_openPluginViaMenu(categoryName, pluginName)
     end
 end
 
--- Crea un botón individual
-function obj:_createButton(config, posX, posY)
+-- Agrupa los botones por grupo y extrae los botones sin grupo
+function obj:_organizeButtons()
+    local groups = {}
+    local ungrouped = {}
+    
+    for _, config in ipairs(obj.buttonsConfig) do
+        if config.group then
+            if not groups[config.group] then
+                groups[config.group] = {}
+            end
+            table.insert(groups[config.group], config)
+        else
+            table.insert(ungrouped, config)
+        end
+    end
+    
+    return groups, ungrouped
+end
+
+-- Toggle de un grupo específico
+function obj:_toggleGroup(groupName)
+    obj.activeGroups[groupName] = not obj.activeGroups[groupName]
+    obj:setupAllButtons()
+end
+
+-- Crea un botón individual (plugin)
+function obj:_createPluginButton(config, posX, posY)
     local canvas = hs.canvas.new({ x = posX, y = posY, w = obj.buttonSize, h = obj.buttonSize })
     canvas:level(hs.canvas.windowLevels.floating)
     canvas:behavior(hs.canvas.windowBehaviors.canJoinAllSpaces + hs.canvas.windowBehaviors.stationary)
     canvas:clickActivating(false)
 
-    local isHovering = false
+    canvas:replaceElements({
+        { type = "rectangle", action = "fill", fillColor = obj.buttonBackgroundColor, roundedRectRadii = { xRadius = obj.buttonRadius, yRadius = obj.buttonRadius }, frame = { x = 0, y = 0, w = obj.buttonSize, h = obj.buttonSize } },
+        { type = "text", text = config.buttonText, textColor = obj.buttonTextColor, textSize = 13, textAlignment = "center", frame = { x = 3, y = 21, w = obj.buttonSize - 6, h = obj.buttonSize } }
+    })
 
-    local function updateButtonAppearance()
-        local bgColor = isHovering and obj.buttonHoverColor or obj.buttonBackgroundColor
-        canvas:replaceElements({
-            { type = "rectangle", action = "fill", fillColor = bgColor, roundedRectRadii = { xRadius = obj.buttonRadius, yRadius = obj.buttonRadius }, frame = { x = 0, y = 0, w = obj.buttonSize, h = obj.buttonSize } },
-            { type = "text", text = config.buttonText, textColor = obj.buttonTextColor, textSize = 13, textAlignment = "center", frame = { x = 3, y = 21, w = obj.buttonSize - 6, h = obj.buttonSize } }
-        })
-    end
-
-    updateButtonAppearance()
     canvas:canvasMouseEvents(true, true)
 
     canvas:mouseCallback(function(c, msg, id, x, y)
-        if msg == "mouseEnter" then
-            isHovering = true
-            updateButtonAppearance()
-        elseif msg == "mouseExit" then
-            isHovering = false
-            updateButtonAppearance()
-        elseif msg == "mouseDown" then
+        if msg == "mouseDown" then
             hs.alert.show("⏳", 0.3)
             hs.timer.doAfter(0.05, function()
                 obj:_openPluginViaMenu(config.categoryName, config.pluginName)
             end)
+        end
+    end)
+
+    canvas:show()
+    return canvas
+end
+
+-- Crea un botón de grupo
+function obj:_createGroupButton(groupName, posX, posY)
+    local canvas = hs.canvas.new({ x = posX, y = posY, w = obj.buttonSize, h = obj.buttonSize })
+    canvas:level(hs.canvas.windowLevels.floating)
+    canvas:behavior(hs.canvas.windowBehaviors.canJoinAllSpaces + hs.canvas.windowBehaviors.stationary)
+    canvas:clickActivating(false)
+
+    local isExpanded = obj.activeGroups[groupName] or false
+    local displayText = isExpanded and (groupName .. "\n▼") or (groupName .. "\n▶")
+
+    canvas:replaceElements({
+        { type = "rectangle", action = "fill", fillColor = obj.groupButtonColor, roundedRectRadii = { xRadius = obj.buttonRadius, yRadius = obj.buttonRadius }, frame = { x = 0, y = 0, w = obj.buttonSize, h = obj.buttonSize } },
+        { type = "text", text = displayText, textColor = obj.buttonTextColor, textSize = 13, textAlignment = "center", frame = { x = 3, y = 21, w = obj.buttonSize - 6, h = obj.buttonSize } }
+    })
+
+    canvas:canvasMouseEvents(true, true)
+
+    canvas:mouseCallback(function(c, msg, id, x, y)
+        if msg == "mouseDown" then
+            obj:_toggleGroup(groupName)
         end
     end)
 
@@ -127,13 +172,42 @@ function obj:setupAllButtons()
     local startX = screenFrame.w - obj.marginRight - obj.buttonSize
     local startY = screenFrame.h - obj.marginBottom - obj.buttonSize
 
-    for i, config in ipairs(obj.buttonsConfig) do
+    local groups, ungrouped = obj:_organizeButtons()
+    
+    -- Construir lista de botones a mostrar
+    local buttonsToShow = {}
+    
+    -- Primero agregar botones de grupos
+    for groupName, groupButtons in pairs(groups) do
+        table.insert(buttonsToShow, { type = "group", name = groupName })
+        
+        -- Si el grupo está expandido, agregar sus botones
+        if obj.activeGroups[groupName] then
+            for _, config in ipairs(groupButtons) do
+                table.insert(buttonsToShow, { type = "plugin", config = config })
+            end
+        end
+    end
+    
+    -- Luego agregar botones sin grupo
+    for _, config in ipairs(ungrouped) do
+        table.insert(buttonsToShow, { type = "plugin", config = config })
+    end
+
+    -- Crear los botones
+    for i, item in ipairs(buttonsToShow) do
         local columnIndex = (i - 1) % buttonsPerRow
         local rowIndex = math.floor((i - 1) / buttonsPerRow)
         local posX = startX - (columnIndex * (obj.buttonSize + obj.buttonSpacing))
         local posY = startY - (rowIndex * (obj.buttonSize + obj.buttonSpacing))
 
-        local button = obj:_createButton(config, posX, posY)
+        local button
+        if item.type == "group" then
+            button = obj:_createGroupButton(item.name, posX, posY)
+        else
+            button = obj:_createPluginButton(item.config, posX, posY)
+        end
+        
         table.insert(obj.canvasButtons, button)
     end
 end
@@ -195,7 +269,8 @@ function obj:stop()
     for _, canvas in ipairs(self.canvasButtons) do
         canvas:delete()
     end
-    self.canvasButtons = {}
+    obj.canvasButtons = {}
+    obj.activeGroups = {}
 end
 
 -- Método de inicialización (se llama automáticamente con hs.loadSpoon)
