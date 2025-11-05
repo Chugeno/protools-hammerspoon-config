@@ -11,7 +11,7 @@ local obj = {}
 --  1. METADATOS DEL SPOON
 -- =============================================================================
 obj.name = "ProToolsAutomator"
-obj.version = "2.0"
+obj.version = "2.1"
 obj.author = "Eugenio Azurmendi <Chugeno>"
 obj.homepage = "https://github.com/Chugeno/protools-hammerspoon-config"
 obj.license = "MIT - https://opensource.org/licenses/MIT"
@@ -26,7 +26,10 @@ obj.buttonsConfig = {
     { group = "RX", categoryName = "Noise Reduction", pluginName = "RX 11 De-clip", buttonText = "RX\nDe-clip" },
     { group = "RX", categoryName = "Noise Reduction", pluginName = "RX 11 De-click", buttonText = "RX\nDe-click" },
     { group = "RX", categoryName = "Noise Reduction", pluginName = "RX 11 De-crackle", buttonText = "RX\nDe-crackle" },
-    
+    { group = "Acon", categoryName = "Noise Reduction", pluginName = "Acon Digital DeClick ", buttonText ="Acon\nDeClick2" },
+    { group = "Acon", categoryName = "Noise Reduction", pluginName = "Acon Digital DeClip 2", buttonText ="Acon\nDeClip2" },
+    { group = "Acon", categoryName = "Noise Reduction", pluginName = "Acon Digital DeHum 2", buttonText ="Acon\nDeHum2" },
+    { group = "Acon", categoryName = "Noise Reduction", pluginName = "Acon Digital DeNoise 2", buttonText ="Acon\nDeNoise2" },    
     -- Botones sin grupo (se muestran siempre)
     { categoryName = "Noise Reduction", pluginName = "Hush Mix", buttonText = "Hush\nMix" },
     { categoryName = "Dynamics", pluginName = "RDeEsser Stereo", buttonText = "RDeEsser\nStereo" },
@@ -38,7 +41,6 @@ obj.buttonsConfig = {
 obj.proToolsAppName = "Pro Tools"
 obj.buttonBackgroundColor = { red = 0.2, green = 0.25, blue = 0.3, alpha = 0.95 }
 obj.buttonTextColor = { red = 0.9, green = 0.95, blue = 1.0, alpha = 1.0 }
-obj.groupButtonColor = { red = 0.25, green = 0.35, blue = 0.45, alpha = 0.95 }
 obj.buttonSize = 80
 obj.buttonRadius = 10
 obj.marginRight = 20
@@ -53,10 +55,64 @@ obj.buttonsVisible = true
 obj.toggleMenu = nil
 obj.screenWatcher = nil
 obj.activeGroups = {} -- Guarda qué grupos están expandidos
+obj.groupColors = {} -- Guarda los colores asignados a cada grupo
 
 -- =============================================================================
 --  5. LÓGICA DEL SPOON
 -- =============================================================================
+
+-- Genera un color aleatorio agradable para un grupo
+function obj:_generateGroupColor(groupName)
+    -- Si ya tiene un color asignado, devolverlo
+    if obj.groupColors[groupName] then
+        return obj.groupColors[groupName]
+    end
+    
+    -- Usar el nombre del grupo como seed para consistencia
+    math.randomseed(string.byte(groupName, 1) * string.byte(groupName, -1) * #groupName)
+    
+    -- Generar colores en rangos agradables (evitando colores muy oscuros o muy claros)
+    local hue = math.random(0, 360)
+    local saturation = math.random(40, 70) / 100  -- Entre 0.4 y 0.7
+    local brightness = math.random(35, 55) / 100  -- Entre 0.35 y 0.55
+    
+    -- Convertir HSV a RGB
+    local function hsvToRgb(h, s, v)
+        local c = v * s
+        local x = c * (1 - math.abs((h / 60) % 2 - 1))
+        local m = v - c
+        
+        local r, g, b
+        if h < 60 then
+            r, g, b = c, x, 0
+        elseif h < 120 then
+            r, g, b = x, c, 0
+        elseif h < 180 then
+            r, g, b = 0, c, x
+        elseif h < 240 then
+            r, g, b = 0, x, c
+        elseif h < 300 then
+            r, g, b = x, 0, c
+        else
+            r, g, b = c, 0, x
+        end
+        
+        return {
+            red = r + m,
+            green = g + m,
+            blue = b + m,
+            alpha = 0.95
+        }
+    end
+    
+    local color = hsvToRgb(hue, saturation, brightness)
+    obj.groupColors[groupName] = color
+    
+    -- Resetear el seed random
+    math.randomseed(os.time())
+    
+    return color
+end
 
 -- Abre el plugin usando AppleScript
 function obj:_openPluginViaMenu(categoryName, pluginName)
@@ -112,8 +168,14 @@ function obj:_createPluginButton(config, posX, posY)
     canvas:behavior(hs.canvas.windowBehaviors.canJoinAllSpaces + hs.canvas.windowBehaviors.stationary)
     canvas:clickActivating(false)
 
+    -- Si el botón pertenece a un grupo, usar el color del grupo
+    local bgColor = obj.buttonBackgroundColor
+    if config.group then
+        bgColor = obj:_generateGroupColor(config.group)
+    end
+
     canvas:replaceElements({
-        { type = "rectangle", action = "fill", fillColor = obj.buttonBackgroundColor, roundedRectRadii = { xRadius = obj.buttonRadius, yRadius = obj.buttonRadius }, frame = { x = 0, y = 0, w = obj.buttonSize, h = obj.buttonSize } },
+        { type = "rectangle", action = "fill", fillColor = bgColor, roundedRectRadii = { xRadius = obj.buttonRadius, yRadius = obj.buttonRadius }, frame = { x = 0, y = 0, w = obj.buttonSize, h = obj.buttonSize } },
         { type = "text", text = config.buttonText, textColor = obj.buttonTextColor, textSize = 13, textAlignment = "center", frame = { x = 3, y = 21, w = obj.buttonSize - 6, h = obj.buttonSize } }
     })
 
@@ -141,9 +203,10 @@ function obj:_createGroupButton(groupName, posX, posY)
 
     local isExpanded = obj.activeGroups[groupName] or false
     local displayText = isExpanded and (groupName .. "\n▼") or (groupName .. "\n▶")
+    local groupColor = obj:_generateGroupColor(groupName)
 
     canvas:replaceElements({
-        { type = "rectangle", action = "fill", fillColor = obj.groupButtonColor, roundedRectRadii = { xRadius = obj.buttonRadius, yRadius = obj.buttonRadius }, frame = { x = 0, y = 0, w = obj.buttonSize, h = obj.buttonSize } },
+        { type = "rectangle", action = "fill", fillColor = groupColor, roundedRectRadii = { xRadius = obj.buttonRadius, yRadius = obj.buttonRadius }, frame = { x = 0, y = 0, w = obj.buttonSize, h = obj.buttonSize } },
         { type = "text", text = displayText, textColor = obj.buttonTextColor, textSize = 13, textAlignment = "center", frame = { x = 3, y = 21, w = obj.buttonSize - 6, h = obj.buttonSize } }
     })
 
