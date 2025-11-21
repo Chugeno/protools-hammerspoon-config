@@ -33,7 +33,7 @@ Por defecto, la botonera aparece en la **Pantalla 1**. Si tienes múltiples moni
 
 ---
 
-## 🎛️ Configuración de la Macro "SPLIT FIX"
+## 🎛️ Calibración (Obligatoria para "Split into Mono")
 
 El botón **Split Mono** ejecuta una secuencia compleja para limpiar audios estéreo separados en mono:
 1.  Ejecuta *Split into Mono*.
@@ -44,21 +44,14 @@ El botón **Split Mono** ejecuta una secuencia compleja para limpiar audios est�
 
 Para que el paso de "Alt+Click" funcione, **necesitas enseñar al script dónde hacer clic** en tu pantalla, ya que esto varía según tu resolución.
 
+**Pasos:**
+
 1.  Ve al menú del Spoon (logo de ProTools) y selecciona **"🎯 Capturar Coordenadas"**.
-2.  Estas instrucciones apareceran en pantalla no te preocupes (harás clic sobre el valor de paneo que para resetear).
-3.  El script copiará un código en tu portapapeles automáticamente.
-4.  Abre el archivo `init.lua` del Spoon ubicado en:
+2.  Sigue las instrucciones en pantalla (prepara Pro Tools con un track mono expandido).
+3.  Haz clic sobre el **valor numérico del paneo** del track.
+4.  **¡Listo!** Las coordenadas se guardan automáticamente en `ProToolsAutomator_config.json`.
 
-`~/Users/tunombredeusuario~/.hammerspoon/Spoons/ProToolsAutomator.spoon/init.lua`,
-
- busca la **LÍNEA 440** (aproximadamente) y pega el código reemplazando los valores existentes.
-
-```lua
--- Ejemplo de lo que pegarás:
-local SCREEN_TO_USE = 1
-local relativeX = 500
-local relativeY = 300
-```
+> **Nota:** Ya no necesitas editar manualmente el archivo `.lua`. El sistema guarda y carga las coordenadas automáticamente.
 
 ---
 
