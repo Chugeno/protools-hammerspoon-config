@@ -90,10 +90,13 @@ function obj:startGuidedCapture()
     
     local clickedButton = hs.dialog.blockAlert(
         "PREPARACIÓN PARA CAPTURA",
-        "Antes de capturar, prepara Pro Tools:\n\n" ..
-        "1. Selecciona un Track Mono.\n" ..
-        "2. Presiona 'E' para que ocupe toda la pantalla.\n" ..
-        "Cuando estés listo, presiona el botón\n\n🎯 Activar Captura\n\ny haz click en el numero de paneo del track.",
+        "Antes de capturar, prepara Pro Tools:\\n\\n" ..
+        "1. Selecciona un Track Mono.\\n" ..
+        "2. Presiona 'E' para que ocupe toda la pantalla.\\n\\n" ..
+        "⚠️ IMPORTANTE: Debes cerrar este diálogo antes de poder\\n" ..
+        "manipular Pro Tools (el diálogo siempre está al frente).\\n\\n" ..
+        "Cuando estés listo, presiona '🎯 Activar Captura'\\n" ..
+        "y luego haz click en el número de paneo del track.",
         "🎯 Activar Captura", -- Botón principal
         "Cancelar"            -- Botón secundario
     )
