@@ -461,7 +461,7 @@ obj.buttonsConfig = {
                 return
             end
             
-            local tiempo_base = 0.2
+            local tiempo_base = 0.02
             local pt = hs.application.get("Pro Tools")
             if not pt then hs.alert.show("Pro Tools no está activo") return end
 
