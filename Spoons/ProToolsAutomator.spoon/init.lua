@@ -90,12 +90,12 @@ function obj:startGuidedCapture()
     
     local clickedButton = hs.dialog.blockAlert(
         "PREPARACIÓN PARA CAPTURA",
-        "Antes de capturar, prepara Pro Tools:\\n\\n" ..
-        "1. Selecciona un Track Mono.\\n" ..
-        "2. Presiona 'E' para que ocupe toda la pantalla.\\n\\n" ..
-        "⚠️ IMPORTANTE: Debes cerrar este diálogo antes de poder\\n" ..
-        "manipular Pro Tools (el diálogo siempre está al frente).\\n\\n" ..
-        "Cuando estés listo, presiona '🎯 Activar Captura'\\n" ..
+        "Antes de capturar, prepara Pro Tools:\n\n" ..
+        "1. Selecciona un Track Mono.\n" ..
+        "2. Presiona 'E' para que ocupe toda la pantalla.\n\n" ..
+        "⚠️ IMPORTANTE: Debes cerrar este diálogo antes de poder\n" ..
+        "manipular Pro Tools (el diálogo siempre está al frente).\n\n" ..
+        "Cuando estés listo, presiona '🎯 Activar Captura'\n" ..
         "y luego haz click en el número de paneo del track.",
         "🎯 Activar Captura", -- Botón principal
         "Cancelar"            -- Botón secundario
@@ -454,6 +454,13 @@ obj.buttonsConfig = {
         customColor = { red = 0.0, green = 0.6, blue = 0.2, alpha = 1.0 },
         isCustomAction = true,
         action = function()
+            -- Validar que existan coordenadas guardadas
+            local config = obj:loadConfig() or {}
+            if not config.splitMonoCoordinates then
+                hs.alert.show("⚠️ Primero debes capturar coordenadas desde el menú 🎯")
+                return
+            end
+            
             local tiempo_base = 0.2
             local pt = hs.application.get("Pro Tools")
             if not pt then hs.alert.show("Pro Tools no está activo") return end
