@@ -78,6 +78,16 @@ function obj:startGuidedCapture()
     -- Obtenemos la ruta del archivo actual para decírsela al usuario
     local currentPath = debug.getinfo(1, "S").source:sub(2)
     
+    hs.focus()
+    
+    -- Watcher para mantener el diálogo al frente
+    local focusWatcher = hs.application.watcher.new(function(appName, eventType, app)
+        if eventType == hs.application.watcher.activated and appName ~= "Hammerspoon" then
+            hs.timer.doAfter(0.05, function() hs.focus() end)
+        end
+    end)
+    focusWatcher:start()
+    
     local clickedButton = hs.dialog.blockAlert(
         "PREPARACIÓN PARA CAPTURA",
         "Antes de capturar, prepara Pro Tools:\n\n" ..
@@ -87,6 +97,8 @@ function obj:startGuidedCapture()
         "🎯 Activar Captura", -- Botón principal
         "Cancelar"            -- Botón secundario
     )
+    
+    focusWatcher:stop()
 
     if clickedButton == "🎯 Activar Captura" then
         -- Pequeño delay para que te de tiempo a soltar el mouse antes de activar
@@ -155,27 +167,43 @@ function obj:startCoordinateCaptureMode()
             end
         end
         
-        -- 2. Copiar al portapapeles
-        local clipboardText = string.format(
-            "            local SCREEN_TO_USE = %d\n            local relativeX = %d\n            local relativeY = %d",
-            screenNumber, relativeX, relativeY
-        )
-        hs.pasteboard.setContents(clipboardText)
+        -- 2. Guardar en config.json
+        local config = self:loadConfig() or {}
+        config.splitMonoCoordinates = {
+            screen = screenNumber,
+            x = relativeX,
+            y = relativeY
+        }
+        self:saveConfig(config)
         
         -- 3. IMPORTANTE: Salir del modo INMEDIATAMENTE (antes de la alerta)
         self:stopCoordinateCapture()
         
-        -- 4. Mostrar instrucciones finales (con un timer mínimo para asegurar que los overlays se fueron)
+        -- 4. Mostrar confirmación
         hs.timer.doAfter(0.1, function()
-            local currentPath = debug.getinfo(1, "S").source:sub(2)
+            hs.focus()
+            
+            local focusWatcher = hs.application.watcher.new(function(appName, eventType, app)
+                if eventType == hs.application.watcher.activated and appName ~= "Hammerspoon" then
+                    hs.timer.doAfter(0.05, function() hs.focus() end)
+                end
+            end)
+            focusWatcher:start()
+            
             hs.dialog.blockAlert(
-                "✅ Coordenadas Copiadas",
-                "El código ya está en tu portapapeles.\n\n" ..
-                "1. Abre este archivo: \n" .. currentPath .. "\n\n" ..
-                "2. Ve a la LÍNEA 450.\n\n" ..
-                "3. Reemplaza las variables existentes con CMD+V.",
-                "Entendido, gracias"
+                "✅ Coordenadas Guardadas",
+                string.format(
+                    "Coordenadas guardadas automáticamente:\n\n" ..
+                    "Pantalla: %d\n" ..
+                    "X: %d\n" ..
+                    "Y: %d\n\n" ..
+                    "Ya están listas para usar en Split Mono.",
+                    screenNumber, relativeX, relativeY
+                ),
+                "Perfecto"
             )
+            
+            focusWatcher:stop()
         end)
         
         return true -- Bloquear el click real para no afectar a Pro Tools
@@ -330,6 +358,8 @@ function obj:firstTimeSetup()
         
         hs.timer.doAfter(2, function()
             hs.focus()
+            hs.timer.usleep(100000)
+            hs.focus()
             local button, screenNumber = hs.dialog.textPrompt(
                 "Configuración de Pantalla",
                 "¿En qué número de pantalla quieres que aparezcan los botones?\n\n" ..
@@ -447,9 +477,18 @@ obj.buttonsConfig = {
             hs.eventtap.keyStroke({}, "E")
             esperar(1) 
             
-            local SCREEN_TO_USE = 1
-            local relativeX = 612
-            local relativeY = 314
+            -- Cargar coordenadas desde config
+            local config = obj:loadConfig() or {}
+            local coords = config.splitMonoCoordinates
+            
+            if not coords then
+                hs.alert.show("⚠️ Primero captura coordenadas desde el menú")
+                return
+            end
+            
+            local SCREEN_TO_USE = coords.screen
+            local relativeX = coords.x
+            local relativeY = coords.y
 
             local targetX, targetY = getAbsoluteCoordinates(SCREEN_TO_USE, relativeX, relativeY)
 
