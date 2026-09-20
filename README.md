@@ -51,8 +51,6 @@ Para que el paso de "Alt+Click" funcione, **necesitas enseñar al script dónde 
 3.  Haz clic sobre el **valor numérico del paneo** del track.
 4.  **¡Listo!** Las coordenadas se guardan automáticamente en `ProToolsAutomator_config.json`.
 
-> **Nota:** Ya no necesitas editar manualmente el archivo `.lua`. El sistema guarda y carga las coordenadas automáticamente.
-
 ---
 
 ## 🎨 Personalización

@@ -445,6 +445,7 @@ obj.buttonsConfig = {
     { categoryName = "Noise Reduction", pluginName = "Hush Mix", buttonText = "Hush\nMix" },
     { categoryName = "Dynamics", pluginName = "RDeEsser Stereo", buttonText = "RDeEsser\nStereo" },
     { categoryName = "Other", pluginName = "Blue Cat's PatchWork", buttonText = "Blue Cat's\nPatchWork" },
+    { categoryName = "Noise Reduction", pluginName = "Clear", buttonText = "Clear" },
 
     -- =====================================================================
     --  BOTÓN: SPLIT MONO
